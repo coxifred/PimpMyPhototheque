@@ -54,6 +54,10 @@
 				$("#Analysis").hide();
 				$("body").find( ".titleAccordion" ).show();
 				$("body").find( ".contentAccordion" ).show();
+				$("body").find(".seeable").each(function( index ) {
+						id=$(this).attr("id");
+						dispPictures.set(id,true);
+					});
 			});
 			
 			$("#addNewAnalysis").click(function(e){
@@ -84,7 +88,7 @@
 		   $("body").delegate(".seeable", "click", function(){
 			id=$(this).attr("id");
 			index=$(this).attr("name");
-			
+			dispPictures.set(id,true);
 			$("body").find( ".titleAccordion" ).hide();
 			$("body").find( ".contentAccordion" ).hide();
 			$("#title_" + id).show();
@@ -217,8 +221,7 @@
 								idCard=replaceAll(window.btoa(json[k].filePath),"=","");
 								
 								imgId=replaceAll("src_" + window.btoa(json[k].filePath),"=","_");
-								if ( typeof $("#_" + idCard).html() == "undefined" )
-								{
+								
 								
 									detail+='<div id="' + idCard + '" class="card">\
 												<div class="image">\
@@ -241,7 +244,6 @@
 												</div>\
 												</div>\
 											</div>';
-								}
 								
 								
 								//detail+='<div style=position:relative><div style=position:relative;left:30px;top:10px;z-index:1000 class="ui red label">22</div><a target=_blank href="loadPicture?picture=' + json[k].filePath + '"><img style=z-index:500 class="ui image" src="loadPicture?picture=' + json[k].filePath + '"></a></div>';
