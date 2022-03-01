@@ -11,7 +11,7 @@ Perhaps as me, you've got more than 100000 pictures managed on my share home fol
 <center>
 <img src="https://raw.githubusercontent.com/coxifred/PimpMyPhototheque/main/images_resources4wiki/blurred.jpg" width="250"/></center><br>
 
-Based on <a href=https://pyimagesearch.com/2015/09/07/blur-detection-with-opencv/>this greate article</a>, i tried to create a GUI to manage my picture folders analysis. The implementation is simple, start a python webserver, add folders to be analysed and take decisions.Close my PC, and see tomorrow morning the progression.
+Based on <a href=https://pyimagesearch.com/2015/09/07/blur-detection-with-opencv/>this great article</a>, i tried to create a GUI to manage my picture folders analysis. The implementation is simple, start a python webserver, add folders to be analysed and take decisions.Close my PC, and see tomorrow morning the progression.
 
 Decisions can be :
 
