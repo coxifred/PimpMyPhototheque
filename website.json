@@ -1,0 +1,11 @@
+{
+    "instance"              : "PimpMyPhototheque instance #1",
+    "debug"                 : true,
+	"webserver"             : true,
+    "webserverDebug"        : true,
+    "webClass"              : "site",
+    "httpBind"              : "0.0.0.0",
+	"httpPort"              : 60000,
+	"backgroundJobInterval" : 30,
+	"resultPath"			: "C:/temp"
+}

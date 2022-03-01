@@ -1,0 +1,587 @@
+<html>
+<head>
+
+<script type="text/javascript" src="/static/javascript/utils.js"></script>
+<link rel="stylesheet" type="text/css" href="/static/css/phototheque.css" />
+<link rel="stylesheet" type="text/css" href="/static/css/semantic.css" />
+<link rel="stylesheet" type="text/css" href="/static/css/jquery-ui.css" />
+
+
+<script>
+	$(document).ready(function() {
+	
+		   const rangePictures = new Map();
+		   const dispPictures = new Map();
+		   firstLoad=true;
+
+		   function asyncShutdown() {
+
+			setTimeout(() => {
+				getValueFromUrlOnError("/shutdown",false,function(json){
+														//alert(json);
+														$("#stoppingServer").hide();
+														$("#runningAnalysis").hide();
+													    $("#disconnected").show();
+													});
+								}, 200);
+
+				
+			}
+           
+		   $("#shutdown").click(function(e){
+		   
+				$("#confirmShutdown").modal({
+							onApprove : function() {
+													$("#stoppingServer").show();	
+													asyncShutdown();
+													
+													
+												   }
+									   }).modal('show');
+					
+				 
+		   });
+		   
+		   $("#AnalysisMenu").click(function(e){
+				$("#Analysis").show();
+				$("#BlurPictures").hide();
+				$("body").find( ".titleAccordion" ).show();
+				$("body").find( ".contentAccordion" ).show();
+			});
+			
+			$("#BlurPicturesMenu").click(function(e){
+			    $("#BlurPictures").show();
+				$("#Analysis").hide();
+				$("body").find( ".titleAccordion" ).show();
+				$("body").find( ".contentAccordion" ).show();
+			});
+			
+			$("#addNewAnalysis").click(function(e){
+			
+			   $("#addAnalysis").modal({
+							onApprove : function() {
+													$('#startSoon').transition('fade');
+													getValueFromUrl("/addAnalysis?threshold="+$("#threshold").val() + "&imagePath=" + $("#imagePath").val(),true,function(json){
+														if ( json == "OK" )
+														{
+															$('#startSoon').transition({
+																						animation  : 'fade',
+																						duration   : '8s'
+																					}
+																					);
+														}else
+														{
+															$('#error').transition({ animation  : 'fade', duration   : '8s' });$('#error').transition({ animation  : 'fade', duration   : '8s' });
+														}
+													});
+												   }
+									   }).modal('show');
+			});
+		   
+           status();
+           setInterval(status, 2000);
+
+		   $("body").delegate(".seeable", "click", function(){
+			id=$(this).attr("id");
+			index=$(this).attr("name");
+			
+			$("body").find( ".titleAccordion" ).hide();
+			$("body").find( ".contentAccordion" ).hide();
+			$("#title_" + id).show();
+			$("#BlurPictures").show();
+			$("#Analysis").hide();
+			
+		   });
+		   
+		    $("body").delegate(".decreaseStep", "click", function(){
+				id=$(this).attr("name");
+				if ( ! rangePictures.has(id) )
+				{
+					rangePictures.set(id,"0-4");
+				}
+				rangefrom=parseInt(rangePictures.get(id).split("-")[0]);
+				rangeTo=parseInt(rangePictures.get(id).split("-")[1]);
+				rangefrom -= 5;
+				rangeTo -= 5;
+				if ( rangefrom < 0 ){
+									rangefrom=0;
+									rangeTo=4;
+									}
+				rangePictures.set(id,rangefrom + "-" + rangeTo);
+				dispPictures.set(id,true);
+		   });
+		   
+		    $("body").delegate(".increaseStep", "click", function(){
+				id=$(this).attr("name");
+				max=$(this).attr("max");
+				if ( ! rangePictures.has(id) )
+				{
+					rangePictures.set(id,"0-4");
+				}
+				rangefrom=parseInt(rangePictures.get(id).split("-")[0]);
+				rangeTo=parseInt(rangePictures.get(id).split("-")[1]);
+				rangefrom += 5;
+				rangeTo += 5;
+				if ( rangeTo > max ){
+									rangeTo=max;
+									rangefrom=max - 5;
+									}
+				if ( rangefrom < 0 ) 
+				{
+				rangefrom=0;
+				}
+				rangePictures.set(id,rangefrom + "-" + rangeTo);
+				dispPictures.set(id,true);
+		   });
+		   
+		   
+		   $("body").delegate(".fileDeletable", "click", function(){
+			id=$(this).attr("id");
+			name=$(this).attr("name");
+			blurredFile=$(this).attr("data");
+			
+			file=window.atob(id);
+			$("#confirmFileDeletion").modal({
+							onApprove : function() {
+													
+													getValueFromUrl("/deleteFile?id=" + file +"&blurredFile=" + blurredFile,true,function(json){
+														if (json == "OK" )
+														{
+															$("#" + id).remove();
+															dispPictures.set(name,true);
+														}else{
+															$('#error').transition({ animation  : 'fade', duration   : '8s' });$('#error').transition({ animation  : 'fade', duration   : '8s' });
+														}
+													});
+												   }
+									   }).modal('show');
+			
+		   });
+		   
+		   
+		   $("body").delegate(".deleteAll", "click", function(){
+		    id=$(this).attr("name");
+			
+			$("#confirmAnalysisAllPictureDeletion").modal({
+							onApprove : function() {
+													
+													getValueFromUrl("/deleteAllPicturesAnalysis?id=" + id,true,function(json){
+														$("#title_" + id ).remove();$("#content_" + id ).remove();
+													});
+												   }
+									   }).modal('show');
+			
+		   });
+		   
+		   
+		   
+		   $("body").delegate(".deleteable", "click", function(){
+		    id=$(this).attr("id");
+			
+			$("#confirmAnalysisDeletion").modal({
+							onApprove : function() {
+													
+													getValueFromUrl("/deleteAnalysis?id=" + id,true,function(json){
+													$("#title_" + id ).remove();$("#content_" + id ).remove();
+													});
+												   }
+									   }).modal('show');
+			
+		   });
+		   
+		   
+		   function fillDetail(id,blurredFile,max)
+		   {
+			
+		    if ( ! rangePictures.has(id) )
+			{
+				rangePictures.set(id,"0-4");
+			}
+			rangefrom=rangePictures.get(id).split("-")[0];
+			rangeTo=rangePictures.get(id).split("-")[1];
+			getValueFromUrl("/getFileDetail?id=" + id +"&from=" + rangefrom + "&to=" + rangeTo,true,function(json){
+                try {
+						json=JSON.parse(json);
+						if (  dispPictures.has(id)  )
+						{
+							dispPictures.delete(id);
+							
+							detail='<div id="range_' + rangefrom + '_' + rangeTo + '_' + id + '" class="ui cards uncardeable">';
+							//console.log(json);
+							for (k=0;k<json.length;k++)
+							{
+								//console.log("Inside analysis blurredFile : " + blurredFile);
+								percent=round(json[k].percent,2);
+								threshold=parseInt(json[k].threshold);
+								size=round(parseInt(json[k].size) / 1024 / 1024,3);
+								idCard=replaceAll(window.btoa(json[k].filePath),"=","");
+								
+								imgId=replaceAll("src_" + window.btoa(json[k].filePath),"=","_");
+								if ( typeof $("#_" + idCard).html() == "undefined" )
+								{
+								
+									detail+='<div id="' + idCard + '" class="card">\
+												<div class="image">\
+													<a target=_blank href="loadPicture?picture=' + json[k].filePath + '"><img id="_' + imgId + '" style=z-index:500 class="ui image" src="loadPicture?picture=' + json[k].filePath + '"></a>\
+												</div>\
+												<div class="content">\
+													<div class="header">\
+														' + size +'Mb\
+													</div>\
+													<div class="meta">\
+														<div class="small ui teal progress" data-percent="' + percent + '" data-total="' + threshold + '"><div class="bar"></div><div class="label">' + percent +'/' + threshold + '%</div></div>\
+													</div>\
+													<div style="width:inherit;overflow-wrap: anywhere;" class="description">\
+														' + json[k].filePath +'\
+													</div>\
+												</div>\
+												<div class="extra content">\
+												<div class="ui two buttons">\
+													<div id="' + idCard + '" name="' + id + '" data="' + blurredFile + '" class="ui basic green button fileDeletable">Delete</div>\
+												</div>\
+												</div>\
+											</div>';
+								}
+								
+								
+								//detail+='<div style=position:relative><div style=position:relative;left:30px;top:10px;z-index:1000 class="ui red label">22</div><a target=_blank href="loadPicture?picture=' + json[k].filePath + '"><img style=z-index:500 class="ui image" src="loadPicture?picture=' + json[k].filePath + '"></a></div>';
+							}
+							detail+='</div>';
+
+							if ( json.length > 1 )
+								{	
+										before='<div style=position:relative;top:10px;z-index:10000 class="column"><i name="' + id + '" class="big arrow left icon decreaseStep"></i></div>';
+										after='<div style=position:relative;top:-18px;left:30px;z-index:10000 class="column"><i max="' + max + '" name="' + id  + '" class="big arrow right icon increaseStep"></i></div>';
+									
+								}else{
+										before="";
+										after="";
+								}
+							
+							
+							$("#detail_" + id).html(before + after + detail);
+						}
+				    }
+					catch (e)
+					{
+						$('#error').transition({ animation  : 'fade', duration   : '8s' });$('#error').transition({ animation  : 'fade', duration   : '8s' });
+						console.log("fillDetail error " + e);
+					}
+			});
+		   
+		   }
+           
+           function status()
+           {
+             
+             getValueFromUrl("/status",true,function(json){
+                try {
+                     analysis=JSON.parse(json);
+					 $("#analysisCount").html(analysis.length);
+					 blurredPictures=0;
+					 html="";
+					 blurredHtml="";
+					 percent=0;
+					 nbMb=0;
+					 nbFiles=0;
+					 running=false;
+					 $("#nbAnalysis").html(analysis.length);
+					 for (i=0;i<analysis.length;i++)
+					   {
+					     blurredPictures+=analysis[i].blurredCount;
+						 if (analysis[i].total != 0 )
+						   { 
+						   percent=round(analysis[i].blurredCount * 100 / analysis[i].total,1);
+						   if ( analysis[i].progression < 100 ) 
+						   {
+							   //console.log(percent + "% running " + running);
+							   running=true;
+						   }
+						}
+						 html+='<tr>';
+						    html+='<td><center>' + analysis[i].startTime + '</td>';
+							html+='<td><center>' + analysis[i].imagePath + '</td>';
+							html+='<td><center><div class="small ui teal progress" data-percent="' + round(analysis[i].progression,2) + '" data-total="'+ analysis[i].threshold + '"><div class="bar"></div><div class="label">' + parseInt(analysis[i].progression) + '% (' + round(analysis[i].elapsedTime,3) + 's) ' + analysis[i].step + '</div></div></td>';
+							html+='<td><center>' + analysis[i].blurredCount + '/' +analysis[i].total +'(' + percent + '%)<br>' + round(analysis[i].blurredSize/1024/1024,3) + 'Mb</td>';
+							html+='<td><center><i name="' + i + '" id="' + analysis[i].id + '" class="eye blue icon seeable"></i></td>';
+							html+='<td><center><i id="' + analysis[i].id + '" class="trash red icon deleteable"></i></td>';
+						 html+='</tr>';
+						 nbMb+=round(analysis[i].blurredSize/1024/1024,3);
+						 nbFiles+=analysis[i].notBlurredCount + analysis[i].blurredCount;
+						 //resultBlurredFile
+						 //console.log("Present " + $("#detail_" + analysis[i].id).html());
+						 subTitle='Analysis on ' + analysis[i].imagePath + ' (date:' + analysis[i].startTime + ', result:' + analysis[i].blurredCount + '/' + analysis[i].total + ', elapsed:' + round(analysis[i].elapsedTime,3) + 's, threshold:' + analysis[i].threshold + ', size:' + round((analysis[i].blurredSize/1024/1024),3) + 'Mb)&nbsp;&nbsp;&nbsp;<button name="' + analysis[i].id + '" + class="mini ui red button deleteAll">Delete all pictures</button>';
+						 if ( typeof $("#title_" + analysis[i].id).html() == "undefined" )
+						 {
+							 blurredHtml+='<div id="title_' + analysis[i].id + '"  class="title titleAccordion">';
+								 blurredHtml+='<i class="dropdown icon"></i>';
+								 blurredHtml+='<div style=display:inline id="subTitle_' + analysis[i].id + '">' + subTitle+'</div>';
+							 blurredHtml+='</div>';
+							 blurredHtml+='<div id="content_' + analysis[i].id + '" class="content contentAccordion">';
+							   blurredHtml+='<p id="detail_' + analysis[i].id + '"></p>';
+							 blurredHtml+='</div>';
+						 }else
+						 {
+							$("#sub_Title_").html(subTitle);
+						 }
+					   }
+					
+					 if ( running )
+					 {
+						 $("#runningAnalysis").show();
+					 }else
+					 {
+						$("#runningAnalysis").hide();
+					 }
+					 $("#nbMb").html(round(nbMb,2));
+					 $("#nbFiles").html(nbFiles);
+					 $("#nbBlurred").html(blurredPictures);
+					 $("#BlurPicturesCount").html( blurredPictures);
+					 $("#analysisContent").html(html);
+					 $("#BlurPicturesContent").append(blurredHtml);
+					 
+					 // Launch fill analysis
+					 
+					 for (i=0;i<analysis.length;i++)
+					   {
+						  if (firstLoad)
+						  {
+							  dispPictures.set(analysis[i].id,true);
+						  }
+						  fillDetail(analysis[i].id,analysis[i].resultBlurredFile,analysis[i].blurredCount);
+					   }
+					 firstLoad=false;
+					 $('.progress').progress();
+					 $('.accordion').accordion();
+                    } catch(e)
+                    {
+						$('#error').transition({ animation  : 'fade', duration   : '8s' });$('#error').transition({ animation  : 'fade', duration   : '8s' });
+                      console.log(e);
+                    }
+               
+			});
+
+           }
+
+           
+	});	
+</script>
+
+
+
+
+</head>
+
+<body >
+    	<div class="PhotothequeTitle" >PimpMyPhototheque</div>
+		 <div style="position:relative;width:250px;top:80px;z-index:1000" class="ui vertical menu">
+		  <a class="active teal item">
+			Coxifred 2022
+			<div class="ui teal left pointing label">Pay me a beer</div>
+		  </a>
+		  <a id=AnalysisMenu class="item">
+			Analysis
+			<div id=analysisCount class="ui label">51</div>
+			<i id=runningAnalysis style=display:none class="spinner loading icon"></i>
+		  </a>
+		  <a id=BlurPicturesMenu class="item">
+			Blur Pictures
+			<div id=BlurPicturesCount  class="ui label">1</div>
+		  </a>
+		  <a id=shutdown class="item">
+			Stop server
+			<i id=stoppingServer style=display:none class="spinner loading icon"></i>
+		  </a>
+		</div>
+
+		<div style=position:relative;right:-280px;bottom:70px class="ui statistics">
+			<div class="statistic">
+			  <div id=nbAnalysis class="value">
+				0
+			  </div>
+			  <div class="label">
+				Analysis
+			  </div>
+			</div>
+			<div class="statistic">
+			  <div id=nbFiles class="value">
+				0
+			  </div>
+			  <div class="label">
+				Files analyzed
+			  </div>
+			</div>
+			<div class="statistic">
+			  <div class="value">
+				<i style=display:inline class="blue eye icon"></i><div style=display:inline  id=nbMb>0</div>
+			  </div>
+			  <div class="label">
+				Mb of blurred pictures
+			  </div>
+			</div>
+			<div class="statistic">
+				<div class="value">
+				  <i style=display:inline class="red crosshairs icon"></i><div style=display:inline  id=nbBlurred>0</div>
+				</div>
+				<div class="label">
+				  Blurred pictures
+				</div>
+			  </div>
+		  </div>
+
+		<div id=Analysis style="position:relative;top:100px;left:40px;z-index:1000">
+		    <button id=addNewAnalysis class="ui primary button">Add new path to analyse</button>
+        	<div id=AnalysisCurrent>
+				<center>
+				<table style="width:95%;position:relative;left:-48px;" class="ui compact celled table">
+				  <thead>
+				  <tr>
+				    <th style=width:260px><center>Time</th>
+					<th><center>Path</th>
+					<th style=width:250px ><center>Progression</th>
+					<th style=width:150px ><center>Blurred Pictures</th>
+					<th style=width:150px ><center>See Analysis</th>
+					<th style=width:150px ><center>Delete Analysis</th>
+				  </tr></thead>
+				  <tbody id=analysisContent>
+					
+				  </tbody>
+				</table>
+			
+			
+			</div>
+        </div>
+		<div id=BlurPictures style=display:none;style="position:relative;left:40px;z-index:1000">
+			
+        		<div id=BlurPicturesContent class="ui styled accordion" style="position:relative;left:40px;width:95%;top:100px;z-index:1000">
+					  
+				</div>
+			
+			
+        </div>
+		
+        <div class="PhotothequeProject" style=z-index:100>
+        	<div class=logo><img class=image src=/static/images/pimpMyPhototheque.png></div>
+			<div id=dash class=dash>
+        </div>
+ 
+</div>
+
+<div id=addAnalysis class="ui tiny modal">
+  <div class="header">Add a new analysis</div>
+  <div class="content">
+    <div class="description">
+	  <p>
+		<div class="ui labeled input">
+		  <div class="ui label">
+			Path:
+		  </div>
+		  <input id=imagePath type="text" placeholder="Enter path to analyse">
+		</div>
+		<div class="ui labeled input">
+		  <div class="ui label">
+			% threshold
+		  </div>
+		  <input id=threshold type="text" placeholder="50" value="50">
+		</div>
+	  </p>
+    </div>
+   </div>
+   <div class="actions">
+		<div class="ui approve button">Approve</div>
+		<div class="ui cancel button">Cancel</div>
+   </div>
+</div>
+
+<div id=confirmShutdown class="ui tiny modal">
+  <div class="header">Shutdown</div>
+  <div class="content">
+    <div class="description">
+	  <p>
+		Sure ?
+	  </p>
+    </div>
+   </div>
+   <div class="actions">
+		<div class="ui approve button">Approve</div>
+		<div class="ui cancel button">Cancel</div>
+   </div>
+</div>
+
+<div id=confirmAnalysisDeletion class="ui tiny modal">
+  <div class="header">Delete this analysis ?</div>
+  <div class="content">
+    <div class="description">
+	  <p>
+		Your pictures won't be touch.
+	  </p>
+    </div>
+   </div>
+   <div class="actions">
+		<div class="ui approve button">Approve</div>
+		<div class="ui cancel button">Cancel</div>
+   </div>
+</div>
+
+<div id=confirmAnalysisAllPictureDeletion class="ui tiny modal">
+  <div class="header">Delete all blurred pictures in this analysis ?</div>
+  <div class="content">
+    <div class="description">
+	  <p>
+		Your pictures will be erased.
+	  </p>
+    </div>
+   </div>
+   <div class="actions">
+		<div class="ui approve button">Approve</div>
+		<div class="ui cancel button">Cancel</div>
+   </div>
+</div>
+
+<div id=confirmFileDeletion class="ui tiny modal">
+  <div class="header">Delete file ?</div>
+  <div class="content">
+    <div class="description">
+	  <p>
+		File will be lost
+	  </p>
+    </div>
+   </div>
+   <div class="actions">
+		<div class="ui approve button">Approve</div>
+		<div class="ui cancel button">Cancel</div>
+   </div>
+</div>
+
+<div id=startSoon class="ui info icon message" style="display:none;position: fixed;bottom: 10px;left:10px;width: 300px;">
+  <i class="notched circle loading icon"></i>
+  <div class="content">
+    <div class="header">
+      Just 5 seconds
+    </div>
+    <p>Analysis will start.</p>
+  </div>
+</div>
+
+<div id=error class="ui error icon message" style="display:none;position: fixed;bottom: 10px;left:10px;width: 300px;">
+	<i class="red window close icon"></i>
+	<div class="content">
+	  <div class="header">
+		Error detected
+	  </div>
+	  <p>See logs on server.</p>
+	</div>
+  </div>
+
+  <div id=disconnected class="ui error icon message" style="display:none;position: fixed;bottom: 10px;left:10px;width: 300px;">
+	<i class="red window close icon"></i>
+	<div class="content">
+	  <div class="header">
+		Disconnected
+	  </div>
+	  <p>Please refresh after restart server.</p>
+	</div>
+  </div>
+
+</body>
+</html>
